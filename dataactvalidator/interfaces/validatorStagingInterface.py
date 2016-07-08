@@ -2,12 +2,13 @@ from dataactcore.models.validationInterface import ValidationInterface
 from dataactcore.models.stagingModels import Appropriation, ObjectClassProgramActivity, AwardFinancial, AwardFinancialAssistance
 from dataactcore.utils.responseException import ResponseException
 from dataactcore.utils.statusCode import StatusCode
-
+from profilehooks import profile
 
 class ValidatorStagingInterface(ValidationInterface):
     """Manages all interaction with the staging tables in the validation database."""
     MODEL_MAP = {"award":AwardFinancialAssistance,"award_financial":AwardFinancial,"appropriations":Appropriation,"program_activity":ObjectClassProgramActivity}
 
+    @profile
     def insertSubmissionRecordByFileType(self, record, fileType):
         """Insert a submitted file row into its corresponding staging table
 
