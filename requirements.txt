@@ -21,4 +21,4 @@ SQLAlchemy-Utils==0.32.1
 xmlrunner==1.7.7
 uwsgi==2.0.12
 supervisor==3.2.2
-profilehooks
+profilehooks==1.8.1
