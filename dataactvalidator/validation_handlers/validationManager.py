@@ -4,6 +4,7 @@ import sys
 import copy
 from csv import Error
 from sqlalchemy import or_, and_
+from profilehooks import profile
 from dataactcore.config import CONFIG_BROKER
 from dataactcore.models.validationModels import FileType
 from dataactcore.utils.responseException import ResponseException
@@ -273,6 +274,7 @@ class ValidationManager:
             writer.write([fieldName,errorMsg,str(rowNumber),failedValue,originalRuleLabel])
             errorInterface.recordRowError(jobId,self.filename,fieldName,error,rowNumber,originalRuleLabel)
 
+    @profile
     def runValidation(self, jobId, interfaces):
         """ Run validations for specified job
         Args:
@@ -330,7 +332,6 @@ class ValidationManager:
                             bucketName, errorFileName)
 
             errorInterface = interfaces.errorDb
-            stagingInterface = interfaces.stagingDb
 
             # While not done, pull one row and put it into staging table if it passes
             # the Validator

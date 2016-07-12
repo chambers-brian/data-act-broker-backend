@@ -1,6 +1,7 @@
 import json
 from sqlalchemy.orm.exc import NoResultFound
 from decimal import *
+from profilehooks import profile
 from dataactcore.utils.responseException import ResponseException
 from dataactcore.utils.statusCode import StatusCode
 from dataactcore.models import domainModels
@@ -76,6 +77,7 @@ class Validator(object):
         return sourceRecords
 
     @staticmethod
+    @profile
     def validate(record,rules,csvSchema,fileType,interfaces):
         """
         Args:
@@ -111,7 +113,7 @@ class Validator(object):
                 fieldName = shortColnames[fieldName]
             checkRequiredOnly = False
             currentSchema = csvSchema[fieldName]
-            ruleSubset = Validator.getRules(fieldName, fileType, rules,interfaces.validationDb)
+
             currentData = record[fieldName]
             if(currentData != None):
                 currentData = currentData.strip()
@@ -134,29 +136,13 @@ class Validator(object):
                 # Don't check value rules if type failed
                 continue
 
-            # Check for a type rule in the rule table, don't want to do value checks if type is not correct
-            typeFailed = False
-            for currentRule in ruleSubset:
-                if(checkRequiredOnly):
-                    # Only checking conditional requirements
-                    continue
-                if(currentRule.rule_type.name == "TYPE"):
-                    if(not Validator.checkType(currentData,currentRule.rule_text_1) ) :
-                        recordFailed = True
-                        recordTypeFailure = True
-                        typeFailed = True
-                        failedRules.append([fieldName, ValidationError.typeError, currentData,""])
-            if(typeFailed):
-                # If type failed, don't do value checks
-                continue
-            #Field must pass all rules
-            for currentRule in ruleSubset :
-                if(checkRequiredOnly and currentRule.rule_type_id != interfaces.validationDb.getRuleType("REQUIRED_CONDITIONAL")):
-                    # If data is empty, only check conditional required rules
-                    continue
-                if(not Validator.evaluateRule(currentData,currentRule,currentSchema.field_type.name,interfaces,record)):
-                    recordFailed = True
-                    failedRules.append([fieldName,"".join(["Failed rule: ",str(currentRule.description)]), currentData, str(currentRule.original_label)])
+            # Check length based on schema
+            if currentSchema.length is not None and currentData is not None and len(currentData.strip()) > currentSchema.length:
+                # Length failure, add to failedRules
+                recordFailed = True
+                failedRules.append([fieldName, ValidationError.lengthError, currentData,""])
+
+        # TODO remove once B9 is moved to SQL
         # Check all multi field rules for this file type
         multiFieldRules = interfaces.validationDb.getMultiFieldRulesByFile(fileType)
         for rule in multiFieldRules:

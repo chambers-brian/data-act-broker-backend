@@ -1,9 +1,11 @@
 import csv
 from sqlalchemy.exc import IntegrityError
+from profilehooks import profile
 from dataactvalidator.filestreaming.fieldCleaner import FieldCleaner
 from dataactvalidator.validation_handlers.validator import Validator
 
 class LoaderUtils:
+
     @staticmethod
     def checkRecord (record, fields) :
         """ Returns True if all elements of fields are present in record """
@@ -24,6 +26,7 @@ class LoaderUtils:
         return True
 
     @classmethod
+    @profile
     def loadCsv(cls,filename,model,interface,fieldMap,fieldOptions):
         """ Loads a table based on a csv
 
@@ -94,8 +97,10 @@ class LoaderUtils:
                     record = model(**row)
                 if not skipInsert:
                     try:
+                        #interface.session.begin_nested()
                         interface.session.merge(record)
                         interface.session.commit()
+
                     except IntegrityError as e:
                         # Hit a duplicate value that violates index, skip this one
                         print("".join(["Warning: Skipping this row: ",str(row)]))

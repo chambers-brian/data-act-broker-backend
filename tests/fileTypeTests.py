@@ -24,10 +24,11 @@ class FileTypeTests(BaseTestValidator):
         # TODO: get rid of this flag once we're using a tempdb for test fixtures
         force_tas_load = False
 
+        print("Uploading files")
         # Upload needed files to S3
         s3FileNameValid = cls.uploadFile("appropValid.csv", user)
         s3FileNameMixed = cls.uploadFile("appropMixed.csv", user)
-        s3FileNameProgramValid = cls.uploadFile("programActivityValid.csv", user)
+        s3FileNameProgramValid = cls.uploadFile("file_b_large.csv", user)
         s3FileNameProgramMixed = cls.uploadFile("programActivityMixed.csv", user)
         s3FileNameAwardFinValid = cls.uploadFile("awardFinancialValid.csv", user)
         s3FileNameAwardFinMixed = cls.uploadFile("awardFinancialMixed.csv", user)
@@ -80,13 +81,17 @@ class FileTypeTests(BaseTestValidator):
     @staticmethod
     def load_definitions(interfaces, force_tas_load):
         """Load file definitions."""
+        print("\nLoad field definitions")
         SchemaLoader.loadAllFromPath(join(CONFIG_BROKER["path"],"dataactvalidator","config"))
+        print("Load sql rules")
         SQLLoader.loadSql("sqlRules.csv")
         # Load domain values tables
-        loadDomainValues(join(CONFIG_BROKER["path"],"dataactvalidator","config"),join(CONFIG_BROKER["path"],"tests","sf_133.csv"))
+        print("Load domain tables")
+        loadDomainValues(join(CONFIG_BROKER["path"],"dataactvalidator","config"),join(CONFIG_BROKER["path"],"tests","sf_133.csv"),join(CONFIG_BROKER["path"],"tests","program_activity.csv"))
         if (interfaces.validationDb.session.query(TASLookup).count() == 0
                 or force_tas_load):
             # TAS table is empty, load it
+            print("Load TAS")
             loadTas(tasFile="all_tas_betc.csv", dropIdx=False)
 
     def test_approp_valid(self):
@@ -99,7 +104,7 @@ class FileTypeTests(BaseTestValidator):
         """Test mixed job with some rows failing."""
         jobId = self.jobIdDict["mixed"]
         self.passed = self.run_test(
-            jobId, 200, "finished", 6330, 4, "complete", 46, True)
+            jobId, 200, "finished", 6288, 4, "complete", 46, True)
 
     def test_program_valid(self):
         """Test valid job."""
@@ -111,7 +116,7 @@ class FileTypeTests(BaseTestValidator):
         """Test mixed job with some rows failing."""
         jobId = self.jobIdDict["programMixed"]
         self.passed = self.run_test(
-        jobId, 200, "finished", 19291, 4, "complete", 111, True)
+        jobId, 200, "finished", 19231, 4, "complete", 111, True)
 
     def test_award_fin_valid(self):
         """Test valid job."""
@@ -123,7 +128,7 @@ class FileTypeTests(BaseTestValidator):
         """Test mixed job with some rows failing."""
         jobId = self.jobIdDict["awardFinMixed"]
         self.passed = self.run_test(
-        jobId, 200, "finished", 15340, 5, "complete", 78, True)
+        jobId, 200, "finished", 15280, 5, "complete", 78, True)
         # Test that whitespace is converted to null
         rowThree = self.interfaces.validationDb.session.query(AwardFinancial).filter(AwardFinancial.parentawardid == "ZZZZ").filter(AwardFinancial.submission_id == self.interfaces.jobDb.getSubmissionId(jobId)).first()
         self.assertIsNone(rowThree.agencyidentifier)
@@ -142,7 +147,7 @@ class FileTypeTests(BaseTestValidator):
         """Test mixed job with some rows failing."""
         jobId = self.jobIdDict["awardMixed"]
         self.passed = self.run_test(
-            jobId, 200, "finished", 3305, 5, "complete", 41, True)
+            jobId, 200, "finished", 3101, 5, "complete", 40, True)
 
     def test_award_mixed_delimiter(self):
         """Test mixed job with mixed delimiter"""
