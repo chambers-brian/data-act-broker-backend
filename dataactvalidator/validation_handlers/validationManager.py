@@ -91,6 +91,7 @@ class ValidationManager:
 
         return True
 
+    @profile
     def threadedValidateJob(self, jobId):
         """
         args
@@ -161,6 +162,7 @@ class ValidationManager:
             return "".join([self.directory, path])
         return "".join(["errors/", path])
 
+    @profile
     def readRecord(self,reader,writer,fileType,interfaces,rowNumber,jobId,isFirstQuarter):
         """ Read and process the next record
 
@@ -204,6 +206,7 @@ class ValidationManager:
             return {}, reduceRow, True, False, rowErrorFound
         return record, reduceRow, False, False, rowErrorFound
 
+    @profile
     def writeToStaging(self, record, jobId, submissionId, passedValidations, interfaces, writer, rowNumber, fileType):
         """ Write this record to the staging tables
 
@@ -235,6 +238,7 @@ class ValidationManager:
             return True
         return False
 
+    @profile
     def writeErrors(self, failures, interfaces, jobId, shortColnames, writer, rowNumber):
         """ Write errors to error database
 
@@ -268,6 +272,7 @@ class ValidationManager:
             writer.write([fieldName,errorMsg,str(rowNumber),failedValue,originalRuleLabel])
             errorInterface.recordRowError(jobId,self.filename,fieldName,error,rowNumber,originalRuleLabel)
 
+    @profile
     def runValidation(self, jobId, interfaces):
         """ Run validations for specified job
         Args:
@@ -382,6 +387,7 @@ class ValidationManager:
             CloudLogger.logError("VALIDATOR_INFO: ", "Completed L1 and SQL rule validations on jobID: " + str(jobId), "")
         return True
 
+    @profile
     def runSqlValidations(self, interfaces, jobId, fileType, shortColnames, writer, rowNumber):
         """ Run all SQL rules for this file type
 
@@ -419,6 +425,7 @@ class ValidationManager:
             errorInterface.recordRowError(jobId,self.filename,fieldName,
                                           error,rowNumber,original_label, file_type_id=fileTypeId, target_file_id = targetFileId)
 
+    @profile
     def runCrossValidation(self, jobId, interfaces):
         """ Cross file validation job, test all rules with matching rule_timing """
         validationDb = interfaces.validationDb
@@ -468,6 +475,7 @@ class ValidationManager:
         interfaces.jobDb.markJobStatus(jobId, "finished")
         CloudLogger.logError("VALIDATOR_INFO: ", "Completed runCrossValidation on submissionID: "+str(submissionId), "")
 
+    @profile
     def validateJob(self, request,interfaces):
         """ Gets file for job, validates each row, and sends valid rows to a staging table
         Args:
