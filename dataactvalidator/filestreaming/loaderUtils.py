@@ -1,6 +1,5 @@
 import csv
 from sqlalchemy.exc import IntegrityError
-from profilehooks import profile
 from dataactvalidator.filestreaming.fieldCleaner import FieldCleaner
 from dataactvalidator.validation_handlers.validator import Validator
 
@@ -26,7 +25,6 @@ class LoaderUtils:
         return True
 
     @classmethod
-    @profile
     def loadCsv(cls,filename,model,interface,fieldMap,fieldOptions):
         """ Loads a table based on a csv
 
@@ -94,10 +92,9 @@ class LoaderUtils:
                         else:
                             # Insert new value
                             valuePresent[field][row[field]] = True
-                    record = model(**row)
+                record = model(**row)
                 if not skipInsert:
                     try:
-                        #interface.session.begin_nested()
                         interface.session.merge(record)
                         interface.session.commit()
 
