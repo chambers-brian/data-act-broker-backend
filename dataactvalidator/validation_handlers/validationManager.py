@@ -21,7 +21,7 @@ from dataactvalidator.validation_handlers.validationError import ValidationError
 from dataactvalidator.interfaces.interfaceHolder import InterfaceHolder
 from dataactvalidator.filestreaming.fieldCleaner import FieldCleaner
 from dataactcore.models.validationModels import RuleSql
-
+from profilehooks import profile
 
 class ValidationManager:
     """
@@ -161,6 +161,7 @@ class ValidationManager:
             return "".join([self.directory, path])
         return "".join(["errors/", path])
 
+    @profile
     def runValidation(self, jobId, interfaces):
         """ Run validations for specified job
         Args:
@@ -327,6 +328,7 @@ class ValidationManager:
             CloudLogger.logError("VALIDATOR_INFO: ", "Completed L1 and SQL rule validations on jobID: " + str(jobId), "")
         return True
 
+    @profile
     def runCrossValidation(self, jobId, interfaces):
         """ Cross file validation job, test all rules with matching rule_timing """
         validationDb = interfaces.validationDb
@@ -376,6 +378,7 @@ class ValidationManager:
         interfaces.jobDb.markJobStatus(jobId, "finished")
         CloudLogger.logError("VALIDATOR_INFO: ", "Completed runCrossValidation on submissionID: "+str(submissionId), "")
 
+    @profile
     def validateJob(self, request,interfaces):
         """ Gets file for job, validates each row, and sends valid rows to a staging table
         Args:
