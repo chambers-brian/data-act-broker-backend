@@ -475,7 +475,6 @@ class ValidationManager:
         interfaces.jobDb.markJobStatus(jobId, "finished")
         CloudLogger.logError("VALIDATOR_INFO: ", "Completed runCrossValidation on submissionID: "+str(submissionId), "")
 
-    @profile
     def validateJob(self, request,interfaces):
         """ Gets file for job, validates each row, and sends valid rows to a staging table
         Args:
