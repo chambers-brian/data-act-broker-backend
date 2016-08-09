@@ -75,7 +75,7 @@ class AwardFinancialHistory(Base):
     fiscal_year = Column(Integer)
     quarter = Column(Integer)
     total = Column(Numeric, nullable=False)
-    submission_id = Column(Integer, ForeignKey("submission.submission_id", name = "fk_history_submission"), nullable=False)
+    submission_id = Column(Integer, ForeignKey("submission.submission_id", name = "fk_history_submission", ondelete="CASCADE"), nullable=False)
 
 Index("ix_object_class_history",
   AwardFinancialHistory.fieldname,
