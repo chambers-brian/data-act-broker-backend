@@ -1,6 +1,6 @@
 """ These classes define the ORM models to be used by sqlalchemy for the job tracker database """
 
-from sqlalchemy import Column, Integer, Text, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, Text, ForeignKey, Boolean, Numeric, Index
 from sqlalchemy.orm import relationship
 from dataactcore.models.baseModel import Base
 
@@ -64,3 +64,31 @@ class RuleSql(Base):
     target_file_id = Column(Integer, ForeignKey("file_type_validation.file_id", name="fk_target_file"), nullable=True)
     target_file = relationship("FileTypeValidation", uselist=False, foreign_keys=[target_file_id])
     query_name = Column(Text)
+
+class AwardFinancialHistory(Base):
+    __tablename__ = "award_financial_history"
+    award_financial_history_id = Column(Integer, primary_key=True)
+    fieldname = Column(Text, nullable=False)
+    tas = Column(Text, nullable=False)
+    object_class = Column(Text)
+    program_activity = Column(Text)
+    fiscal_year = Column(Integer)
+    quarter = Column(Integer)
+    total = Column(Numeric, nullable=False)
+    submission_id = Column(Integer, ForeignKey("submission.submission_id", name = "fk_history_submission"), nullable=False)
+
+Index("ix_object_class_history",
+  AwardFinancialHistory.fieldname,
+  AwardFinancialHistory.tas,
+  AwardFinancialHistory.object_class,
+  AwardFinancialHistory.fiscal_year,
+  AwardFinancialHistory.quarter,
+  unique=True)
+
+Index("ix_program_activity_history",
+  AwardFinancialHistory.fieldname,
+  AwardFinancialHistory.tas,
+  AwardFinancialHistory.program_activity,
+  AwardFinancialHistory.fiscal_year,
+  AwardFinancialHistory.quarter,
+  unique=True)
