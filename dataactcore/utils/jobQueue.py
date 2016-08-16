@@ -34,22 +34,17 @@ class JobQueue:
             response = requests.post(url, params)
             return response.json()
 
-        @self.jobQueue.task(name='jobQueue.generate_d1')
+        @self.jobQueue.task(name='jobQueue.generate_d_file')
         def generate_d_file(api_url, file_name, user_id, d_file_id, interface_holder, timestamped_name, skip_gen=False):
             job_manager = interface_holder().jobDb
 
             try:
-                # if skip_gen:
-                #     s3_url = s3UrlHandler().getSignedUrl(path="public/", fileName=file_name, method="GET")
-                #     job_manager.setDFileUrl(d_file_id, s3_url)
-                #     job_manager.setDFileStatus(d_file_id, "finished")
-                # else:
                 if not skip_gen:
                     xml_response = str(requests.get(api_url, verify=False).content)
                     url_start_index = xml_response.find("<results>", 0) + 9
                     file_url = xml_response[url_start_index:xml_response.find("</results>", url_start_index)]
                 else:
-                    file_url = s3UrlHandler().getSignedUrl(path="public/", fileName=file_name, method="GET")
+                    file_url = s3UrlHandler().getSignedUrl(path="d-files/", fileName=file_name, method="GET")
 
                 bucket = CONFIG_BROKER['aws_bucket']
                 region = CONFIG_BROKER['aws_region']
@@ -73,8 +68,6 @@ class JobQueue:
                         writer.write(line)
                     writer.finishBatch()
 
-                s3_url = s3UrlHandler().getSignedUrl(path=str(user_id), fileName=timestamped_name, method="GET")
-                job_manager.setDFileUrl(d_file_id, s3_url)
                 job_manager.setDFileStatus(d_file_id, "finished")
             except Exception as e:
                 job_manager.setDFileMessage(d_file_id, str(e))

@@ -1,6 +1,4 @@
 import os
-import requests
-import time
 from flask import session, request
 from datetime import datetime
 from werkzeug import secure_filename
@@ -149,13 +147,10 @@ class FileHandler:
                 # If filetype not included in request, and this is an update to an existing submission, skip it
                 if not safeDictionary.exists(fileType):
                     if existingSubmission:
-                        submission = self.jobManager.getSubmissionById(submissionId)
-                        submission.updated_at = time.strftime("%c")
-                        self.jobManager.session.commit()
                         continue
-                    else:
-                        # This is a new submission, all files are required
-                        raise ResponseException("Must include all files for new submission",StatusCode.CLIENT_ERROR)
+                    # This is a new submission, all files are required
+                    raise ResponseException("Must include all files for new submission", StatusCode.CLIENT_ERROR)
+
                 filename = safeDictionary.getValue(fileType)
                 if( safeDictionary.exists(fileType)) :
                     if(not self.isLocal):
@@ -164,6 +159,10 @@ class FileHandler:
                         uploadName = filename
                     responseDict[fileType+"_key"] = uploadName
                     fileNameMap.append((fileType,uploadName,filename))
+
+            if not fileNameMap and existingSubmission:
+                raise ResponseException("Must include at least one file for an existing submission",
+                                        StatusCode.CLIENT_ERROR)
 
             for extFileType in FileHandler.EXTERNAL_FILE_TYPES:
                 if extFileType == "award":
@@ -463,10 +462,17 @@ class FileHandler:
             if result.status_code != 200:
                 raise ResponseException(result.data)
 
-        url = "" if d1_file.url is None else d1_file.url
-        error_message = "" if d1_file.error_message is None else d1_file.error_message
+        file_elements = d1_file.upload_file_name.split('/')
+        user_id = file_elements[0]
+        timestamped_filename = file_elements[-1]
 
-        response = {"status": status, "url": url, "start": str(d1_file.start_date), "end": str(d1_file.end_date),
+        url = "" if status != "finished" else self.s3manager.getSignedUrl(path=str(user_id),
+                                                                          fileName=timestamped_filename, method="GET")
+        error_message = "" if d1_file.error_message is None else d1_file.error_message
+        start_date = d1_file.start_date.strftime("%m/%d/%Y")
+        end_date = d1_file.end_date.strftime("%m/%d/%Y")
+
+        response = {"status": status, "url": url, "start": start_date, "end": end_date,
                     "message": error_message}
 
         return JsonResponse.create(StatusCode.OK, response)
@@ -535,11 +541,17 @@ class FileHandler:
             if result.status_code != 200:
                 raise ResponseException(result.data)
 
-        status = self.jobManager.getJobStatusNameById(d2_file.status_id)
-        url = "" if d2_file.url is None else d2_file.url
-        error_message = "" if d2_file.error_message is None else d2_file.error_message
+        file_elements = d2_file.upload_file_name.split('/')
+        user_id = file_elements[0]
+        timestamped_filename = file_elements[-1]
 
-        response = {"status": status, "url": url, "start": str(d2_file.start_date), "end": str(d2_file.end_date),
+        url = "" if status != "finished" else self.s3manager.getSignedUrl(path=str(user_id), fileName=timestamped_filename, method="GET")
+
+        error_message = "" if d2_file.error_message is None else d2_file.error_message
+        start_date = d2_file.start_date.strftime("%m/%d/%Y")
+        end_date = d2_file.end_date.strftime("%m/%d/%Y")
+
+        response = {"status": status, "url": url, "start": start_date, "end": end_date,
                     "message": error_message}
 
         return JsonResponse.create(StatusCode.OK, response)
