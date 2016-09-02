@@ -1,3 +1,4 @@
+from dataactcore.models.baseInterface import BaseInterface
 from dataactcore.models.userModel import PermissionType, UserStatus
 from dataactcore.models.userInterface import UserInterface
 from dataactcore.scripts.databaseSetup import createDatabase, runMigrations
@@ -22,7 +23,7 @@ def insertCodes():
         (5, 'denied', 'User registration was denied')]
     for s in statusList:
         status = UserStatus(user_status_id=s[0], name=s[1], description=s[2])
-        userDb.session.merge(status)
+        BaseInterface.session.merge(status)
 
     # insert user permission types
     typeList = [

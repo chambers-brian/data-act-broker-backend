@@ -68,7 +68,7 @@ class FileTests(BaseTestAPI):
         self.login_other_user(
             self.test_users["submission_email"], self.user_password)
         # Here to repopulate BaseInterface.interfaces after login route clears them
-        InterfaceHolder()
+        self.interfaces = InterfaceHolder()
 
     def call_file_submission(self):
         """Call the broker file submission route."""

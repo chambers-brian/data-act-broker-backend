@@ -23,34 +23,36 @@ class BaseInterface(object):
     interfaces = None
 
     def __init__(self):
-        self.dbConfig = CONFIG_DB
-        self.dbName = self.dbConfig['db_name']
-        if self.session is not None:
+        BaseInterface.dbConfig = CONFIG_DB
+        print("Old DB name " + str(BaseInterface.dbName))
+        BaseInterface.dbName = BaseInterface.dbConfig['db_name']
+        if BaseInterface.interfaces is not None:
             # session is already set up for this DB
             return
-
-        self.engine, self.connection = dbConnection()
-        if self.Session is None:
+        print("Opening connection to " + str(BaseInterface.dbName))
+        BaseInterface.engine, BaseInterface.connection = dbConnection()
+        if BaseInterface.Session is None:
             if(BaseInterface.IS_FLASK) :
-                self.Session = scoped_session(sessionmaker(bind=self.engine,autoflush=True),scopefunc=_app_ctx_stack.__ident_func__)
+                BaseInterface.Session = scoped_session(sessionmaker(bind=BaseInterface.engine,autoflush=True),scopefunc=_app_ctx_stack.__ident_func__)
             else :
-                self.Session = scoped_session(sessionmaker(bind=self.engine,autoflush=True))
-        self.session = self.Session()
+                BaseInterface.Session = scoped_session(sessionmaker(bind=BaseInterface.engine,autoflush=True))
+        BaseInterface.session = BaseInterface.Session()
 
     def __del__(self):
-       self.close()
+       BaseInterface.close()
 
-    def close(self):
+    @classmethod
+    def close(cls):
         try:
             #Close session
-            self.session.close()
-            self.Session.remove()
-            self.connection.close()
-            self.engine.dispose()
-            self.interfaces = None
+            cls.session.close()
+            cls.Session.remove()
+            cls.connection.close()
+            cls.engine.dispose()
+            cls.interfaces = None
         except (KeyError, AttributeError):
             # KeyError will occur in Python 3 on engine dispose
-            self.interfaces = None
+            cls.interfaces = None
             pass
 
     def getSession(self):
@@ -151,6 +153,8 @@ def dbConnection():
         raise ValueError("Database configuration is not defined")
 
     dbName = CONFIG_DB['db_name']
+    print("db name from config " + str(dbName))
+    print("db name on class " + str(BaseInterface.dbName))
     if not dbName:
         raise ValueError("Need dbName defined")
 
@@ -159,7 +163,9 @@ def dbConnection():
         "postgresql://{username}:{password}@{host}:{port}/{db_name}".format(
             **CONFIG_DB),
         pool_size=100, max_overflow=50)
+    print("Engine created")
     connection = engine.connect()
+    print("Connection created")
     return engine, connection
 
 

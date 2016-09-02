@@ -29,7 +29,7 @@ class BaseTestAPI(unittest.TestCase):
         """Set up resources to be shared within a test class"""
         #TODO: refactor into a pytest class fixtures and inject as necessary
         # Prevent interface being reused from last suite
-        BaseInterface.interfaces = None
+        BaseInterface.close()
         # Create an empty session ID
         cls.session_id = ""
 
@@ -42,10 +42,12 @@ class BaseTestAPI(unittest.TestCase):
             cls.num, suite)
         dataactcore.config.CONFIG_DB = config
         createDatabase(CONFIG_DB['db_name'])
+        print("Running migrations")
         runMigrations()
-
+        print("Setting up user DB")
         # drop and re-create test user db/tables
         setupUserDB()
+        print("Setting up job DB")
         # drop and re-create test job db/tables
         setupJobTrackerDB()
         # drop and re-create test error db/tables

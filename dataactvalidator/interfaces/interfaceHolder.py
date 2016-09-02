@@ -23,5 +23,4 @@ class InterfaceHolder:
 
     def close(self):
         """ Close all open connections """
-        if self.jobDb is not None:
-            self.jobDb.close()
+        BaseInterface.close()

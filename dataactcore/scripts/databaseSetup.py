@@ -8,13 +8,16 @@ from sqlalchemy.exc import ProgrammingError
 
 def createDatabase(dbName):
     """Create specified database if it doesn't exist."""
+    print("Called createDatabase for " + str(dbName))
     config = CONFIG_DB
     connectString = "postgresql://{}:{}@{}:{}/{}".format(config["username"],
         config["password"], config["host"], config["port"],
         dbName)
 
     if not sqlalchemy_utils.database_exists(connectString):
+        print("Creating database " + str(dbName))
         sqlalchemy_utils.create_database(connectString)
+        print("Database created")
 
 
 def dropDatabase(dbName):
