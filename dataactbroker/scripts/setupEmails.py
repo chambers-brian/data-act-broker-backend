@@ -1,11 +1,19 @@
 from dataactcore.models.userModel import EmailTemplateType
+from dataactcore.models.baseInterface import BaseInterface
 from dataactbroker.handlers.userHandler import UserHandler
 from dataactbroker.handlers.interfaceHolder import InterfaceHolder
 
 def setupEmails():
     """Create email templates from model metadata."""
-    userDb = UserHandler()
-
+    if BaseInterface.interfaces is not None:
+        print("Using existing interfaces")
+        userDb = BaseInterface.interfaces.userDb
+    else:
+        print("Creating new interfaces")
+        interfaces = InterfaceHolder()
+        userDb = interfaces.userDb
+    #userDb = UserHandler()
+    print("Db name for setupEmails " + str(BaseInterface.dbName) + " and " + str(userDb.dbName))
     # insert email template types
     typeList = [
         ('validate_email', ''),
@@ -73,7 +81,8 @@ def setupEmails():
     template = "[REV_USER_NAME] has shared a DATA Act broker submission with you. Click <a href='[REV_URL]'>here</a> to review their submission. For questions or comments, please email the DATA Act Broker Helpdesk (DATABroker@fiscal.treasury.gov)."
     userDb.loadEmailTemplate("DATA Act Broker - Submission Ready for Review", template, "review_submission")
 
-    userDb.close()
+    #userDb.close()
+    BaseInterface.close()
 
 if __name__ == '__main__':
     setupEmails()
