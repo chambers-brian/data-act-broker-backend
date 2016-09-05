@@ -13,9 +13,9 @@ from dataactvalidator.validation_handlers.validationError import ValidationError
 class JobTrackerInterface(BaseInterface):
     """Manages all interaction with the job tracker database."""
 
-    def __init__(self):
+    def __init__(self, session = None):
         self.jobQueue = JobQueue(job_queue_url=CONFIG_JOB_QUEUE['url'])
-        super(JobTrackerInterface, self).__init__()
+        super(JobTrackerInterface, self).__init__(session=session)
 
     @staticmethod
     def checkJobUnique(query):

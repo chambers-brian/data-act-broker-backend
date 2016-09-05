@@ -22,9 +22,13 @@ class BaseInterface(object):
     # This holds a pointer to an InterfaceHolder object, and is populated when that is instantiated
     interfaces = None
 
-    def __init__(self):
+    def __init__(self, session=None):
         self.dbConfig = CONFIG_DB
         self.dbName = self.dbConfig['db_name']
+        if session is not None:
+            # Use specified session and return
+            self.session = session
+            return
         if self.session is not None:
             # session is already set up for this DB
             return
