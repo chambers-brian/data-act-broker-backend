@@ -16,6 +16,7 @@ from dataactbroker.loginRoutes import add_login_routes
 from dataactbroker.userRoutes import add_user_routes
 from dataactbroker.domainRoutes import add_domain_routes
 from dataactcore.config import CONFIG_BROKER, CONFIG_SERVICES, CONFIG_DB, CONFIG_PATH
+from dataactcore.logging_setup import configure_logging
 from dataactcore.utils.timeout import timeout
 
 def createApp():
@@ -124,6 +125,7 @@ def runApp():
     )
 
 if __name__ == '__main__':
+    configure_logging()
     runApp()
     proc = multiprocessing.Process(target=checkDynamo)
     proc.start()
@@ -133,5 +135,6 @@ if __name__ == '__main__':
         proc.terminate()
         proc.join()
 
-elif __name__[0:5]=="uwsgi":
+elif __name__[0:5] == "uwsgi":
+    configure_logging()
     app = createApp()
