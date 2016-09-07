@@ -28,6 +28,7 @@ def createApp():
         app.config['LOCAL'] = local
         app.config['REST_TRACE'] = CONFIG_SERVICES['rest_trace']
         app.config['SYSTEM_EMAIL'] = CONFIG_BROKER['reply_to_email']
+        app.debug = True
 
         # Future: Override config w/ environment variable, if set
         app.config.from_envvar('BROKER_SETTINGS', silent=True)
