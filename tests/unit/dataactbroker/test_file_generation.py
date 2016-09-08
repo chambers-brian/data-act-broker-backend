@@ -3,7 +3,7 @@ from unittest.mock import Mock
 from dataactcore.models.jobModels import Submission, Job, FileGenerationTask
 from dataactbroker.handlers.fileHandler import FileHandler
 
-def test_start_generation_job(brokerDb):
+def test_start_generation_job(database, brokerDb):
     fileHandler = FileHandler(None,brokerDb,True)
     # Mock D file API
     fileHandler.call_d_file_api = Mock(return_value=True)

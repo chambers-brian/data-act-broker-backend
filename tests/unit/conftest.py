@@ -29,7 +29,7 @@ def database():
 @pytest.fixture(scope='session')
 def brokerDb():
     """Sets up a clean database, yielding a relevant interface holder"""
-    rand_id = str(randint(1, 9999))
+    rand_id = str(randint(10000, 19999))
 
     config = dataactcore.config.CONFIG_DB
     config['db_name'] = 'unittest{}_data_broker'.format(rand_id)
