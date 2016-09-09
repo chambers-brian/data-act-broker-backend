@@ -9,9 +9,9 @@ from dataactbroker.interfaces.validationBrokerInterface import ValidationBrokerI
 
 class InterfaceHolder:
     """ This class holds an interface to each database as a static variable, to allow reuse of connections throughout the project """
-    def __init__(self):
+    def __init__(self, forceOverwrite = False):
         """ Create the interfaces """
-        if BaseInterface.interfaces is None:
+        if BaseInterface.interfaces is None or forceOverwrite:
             self.jobDb = JobHandler()
             self.errorDb = ErrorHandler()
             self.userDb = UserHandler()

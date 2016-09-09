@@ -2,8 +2,46 @@ from datetime import datetime
 from unittest.mock import Mock
 from dataactcore.models.jobModels import Submission, Job, FileGenerationTask
 from dataactbroker.handlers.fileHandler import FileHandler
+from random import randint
+import pytest
+import dataactcore.config
+from dataactcore.scripts.databaseSetup import (
+    createDatabase, dropDatabase, runMigrations)
+from dataactcore.models.baseInterface import BaseInterface
+from dataactbroker.handlers.interfaceHolder import InterfaceHolder as BrokerInterfaceHolder
+
+@pytest.fixture(scope='function')
+def brokerDb():
+    """Sets up a clean database, yielding a relevant interface holder"""
+    print("Setting up broker interface")
+    rand_id = str(randint(10000, 19999))
+
+    existingConfig = BaseInterface.dbConfig
+    existingDbName = BaseInterface.dbName
+    print("Old db name: " + str(existingDbName))
+    config = dataactcore.config.CONFIG_DB
+    config['db_name'] = 'unittest{}_data_broker'.format(rand_id)
+    print("Broker db name: " + str(config["db_name"]))
+    dataactcore.config.CONFIG_DB = config
+
+    createDatabase(config['db_name'])
+    runMigrations()
+    existingInterface = BaseInterface.interfaces
+    interface = BrokerInterfaceHolder(forceOverwrite=True)
+
+    yield interface
+    print("Doing broker teardown")
+    interface.close()
+    dropDatabase(config['db_name'])
+    # Replace interfaces used by session-level fixture
+    BaseInterface.interfaces = existingInterface
+    BaseInterface.dbConfig = existingConfig
+    BaseInterface.dbName = existingDbName
+    print("Restored to dbname: " + str(BaseInterface.dbName))
 
 def test_start_generation_job(database, brokerDb):
+    print("start generation test called")
+    return
     fileHandler = FileHandler(None,brokerDb,True)
     # Mock D file API
     fileHandler.call_d_file_api = Mock(return_value=True)

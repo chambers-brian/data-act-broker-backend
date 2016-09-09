@@ -13,6 +13,7 @@ _TAS = 'a10_appropriations_tas'
 def test_success(database):
     """ Tests that SF 133 amount sum for lines 1340, 1440 matches Appropriation borrowing_authority_amount_cpe
         for the specified fiscal year and period """
+    print("Dbname: " + str(database.jobDb.dbName))
     tas = "".join([_TAS, "_success"])
 
     sf_1 = SF133Factory(line=1340, tas=tas, period=1, fiscal_year=2016,
