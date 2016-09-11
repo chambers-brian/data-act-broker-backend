@@ -9,10 +9,9 @@ from dataactcore.scripts.databaseSetup import (
     createDatabase, dropDatabase, runMigrations)
 from dataactcore.models.baseInterface import BaseInterface
 from dataactbroker.handlers.interfaceHolder import InterfaceHolder as BrokerInterfaceHolder
-
+"""
 @pytest.fixture(scope='function')
 def brokerDb():
-    """Sets up a clean database, yielding a relevant interface holder"""
     print("Setting up broker interface")
     rand_id = str(randint(10000, 19999))
 
@@ -38,32 +37,33 @@ def brokerDb():
     BaseInterface.dbConfig = existingConfig
     BaseInterface.dbName = existingDbName
     print("Restored to dbname: " + str(BaseInterface.dbName))
+"""
 
-def test_start_generation_job(database, brokerDb):
+def test_start_generation_job(database):
     print("start generation test called")
     return
-    fileHandler = FileHandler(None,brokerDb,True)
+    fileHandler = FileHandler(None,database[1],True)
     # Mock D file API
     fileHandler.call_d_file_api = Mock(return_value=True)
     file_type = "D2"
     file_type_name = "award"
-    sub, uploadJob, validationJob = setupSubmission(brokerDb, file_type_name)
+    sub, uploadJob, validationJob = setupSubmission(database[1], file_type_name)
     success, errorResponse = fileHandler.startGenerationJob(sub.submission_id, file_type)
     assert(success)
     # Get file generation task created
-    task = brokerDb.jobDb.query(FileGenerationTask).filter(FileGenerationTask.submission_id == sub.submission_id).filter(FileGenerationTask.file_type_id == brokerDb.jobDb.getFileTypeId(file_type_name)).one()
+    task = database[1].jobDb.query(FileGenerationTask).filter(FileGenerationTask.submission_id == sub.submission_id).filter(FileGenerationTask.file_type_id == database[1].jobDb.getFileTypeId(file_type_name)).one()
     assert(task.job_id == uploadJob.job_id)
-    assert(uploadJob.job_status_id == brokerDb.jobDb.getJobStatusId("running"))
+    assert(uploadJob.job_status_id == database[1].jobDb.getJobStatusId("running"))
 
     # Mock an empty response
     fileHandler.call_d_file_api = Mock(return_value=True)
-    sub, uploadJob, validationJob = setupSubmission(brokerDb, file_type_name)
+    sub, uploadJob, validationJob = setupSubmission(database[1], file_type_name)
     success, errorResponse = fileHandler.startGenerationJob(sub.submission_id, file_type)
     assert(success)
-    task = brokerDb.jobDb.query(FileGenerationTask).filter(FileGenerationTask.submission_id == sub.submission_id).filter(FileGenerationTask.file_type_id == brokerDb.jobDb.getFileTypeId(file_type_name)).one()
+    task = database[1].jobDb.query(FileGenerationTask).filter(FileGenerationTask.submission_id == sub.submission_id).filter(FileGenerationTask.file_type_id == database[1].jobDb.getFileTypeId(file_type_name)).one()
     assert(task.job_id == uploadJob.job_id)
     assert(uploadJob.filename == "#")
-    assert(uploadJob.job_status_id == brokerDb.jobDb.getJobStatusId("finished"))
+    assert(uploadJob.job_status_id == database[1].jobDb.getJobStatusId("finished"))
 
 def setupSubmission(brokerDb, file_type_name):
     """ Create a submission with jobs for specified file type """

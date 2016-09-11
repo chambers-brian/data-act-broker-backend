@@ -13,7 +13,7 @@ _TAS = 'a10_appropriations_tas'
 def test_success(database):
     """ Tests that SF 133 amount sum for lines 1340, 1440 matches Appropriation borrowing_authority_amount_cpe
         for the specified fiscal year and period """
-    print("Dbname: " + str(database.jobDb.dbName))
+    print("Dbname: " + str(database[0].jobDb.dbName))
     tas = "".join([_TAS, "_success"])
 
     sf_1 = SF133Factory(line=1340, tas=tas, period=1, fiscal_year=2016,
@@ -24,7 +24,7 @@ def test_success(database):
 
     models = [sf_1, sf_2, ap]
 
-    assert number_of_errors(_FILE, database.stagingDb, models=models) == 0
+    assert number_of_errors(_FILE, database[0].stagingDb, models=models) == 0
 
 
 def test_failure(database):
@@ -40,4 +40,4 @@ def test_failure(database):
 
     models = [sf_1, sf_2, ap]
 
-    assert number_of_errors(_FILE, database.stagingDb, models=models) == 1
+    assert number_of_errors(_FILE, database[0].stagingDb, models=models) == 1

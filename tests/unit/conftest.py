@@ -6,6 +6,7 @@ import dataactcore.config
 from dataactcore.scripts.databaseSetup import (
     createDatabase, dropDatabase, runMigrations)
 from dataactvalidator.interfaces.interfaceHolder import InterfaceHolder
+from dataactbroker.handlers.interfaceHolder import InterfaceHolder as brokerInterfaceHolder
 
 @pytest.fixture(scope='session')
 def database():
@@ -21,8 +22,9 @@ def database():
     createDatabase(config['db_name'])
     runMigrations()
     interface = InterfaceHolder()
+    brokerInterfaces = brokerInterfaceHolder()
 
-    yield interface
+    yield (interface, brokerInterfaces)
 
     interface.close()
     dropDatabase(config['db_name'])
