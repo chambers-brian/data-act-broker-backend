@@ -3,11 +3,12 @@ from random import randint
 import pytest
 
 import dataactcore.config
+from dataactcore.models.baseInterface import BaseInterface
 from dataactcore.scripts.databaseSetup import (
     createDatabase, dropDatabase, runMigrations)
 from dataactvalidator.interfaces.interfaceHolder import InterfaceHolder
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def database():
     """Sets up a clean database, yielding a relevant interface holder"""
     print("Setting up validator interface")
@@ -20,10 +21,11 @@ def database():
 
     createDatabase(config['db_name'])
     runMigrations()
+    BaseInterface.interfaces = None
     interface = InterfaceHolder()
 
     yield interface
-
+    print("Hit database teardown")
     interface.close()
     dropDatabase(config['db_name'])
 

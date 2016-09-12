@@ -16,9 +16,6 @@ def brokerDb():
     print("Setting up broker interface")
     rand_id = str(randint(10000, 19999))
 
-    existingConfig = BaseInterface.dbConfig
-    existingDbName = BaseInterface.dbName
-    print("Old db name: " + str(existingDbName))
     config = dataactcore.config.CONFIG_DB
     config['db_name'] = 'unittest{}_data_broker'.format(rand_id)
     print("Broker db name: " + str(config["db_name"]))
@@ -26,20 +23,15 @@ def brokerDb():
 
     createDatabase(config['db_name'])
     runMigrations()
-    existingInterface = BaseInterface.interfaces
+    BaseInterface.interfaces = None
     interface = BrokerInterfaceHolder(forceOverwrite=True)
 
     yield interface
     print("Doing broker teardown")
     interface.close()
     dropDatabase(config['db_name'])
-    # Replace interfaces used by session-level fixture
-    BaseInterface.interfaces = existingInterface
-    BaseInterface.dbConfig = existingConfig
-    BaseInterface.dbName = existingDbName
-    print("Restored to dbname: " + str(BaseInterface.dbName))
 
-def test_start_generation_job(database, brokerDb):
+def test_start_generation_job(brokerDb):
     print("start generation test called")
     return
     fileHandler = FileHandler(None,brokerDb,True)
