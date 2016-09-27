@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from flask import session, request
 import requests
-from requests.exceptions import Timeout
+from requests.exceptions import RequestException
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import NoResultFound
 from werkzeug import secure_filename
@@ -566,8 +566,8 @@ class FileHandler:
         try:
             if not self.call_d_file_api(get_url):
                 self.handleEmptyResponse(job, valJob)
-        except Timeout as e:
-            exc = ResponseException(str(e), StatusCode.CLIENT_ERROR, Timeout)
+        except RequestException as e:
+            exc = ResponseException(str(e), StatusCode.CLIENT_ERROR, ResponseException)
             return False, JsonResponse.error(e, exc.status, url="", start="", end="", file_type=file_type)
 
         return True, None
@@ -605,7 +605,7 @@ class FileHandler:
         CloudLogger.log("DEBUG: Getting XML response",
                         log_type="debug",
                         file_name=self.debug_file_name)
-        return requests.get(api_url, verify=False, timeout=120).text
+        return requests.get(api_url, verify=False, timeout=0.000001).text
 
     def call_d_file_api(self, api_url):
         """ Call D file API, return True if results found, False otherwise """
