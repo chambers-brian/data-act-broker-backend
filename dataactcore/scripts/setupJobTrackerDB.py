@@ -40,10 +40,10 @@ def insertCodes(sess):
         status = PublishStatus(publish_status_id=ps[0], name=ps[1], description=ps[2])
         sess.merge(status)
 
-    fileTypeList = [(1, 'appropriations', '', 'A'),
-        (2,'program_activity', '', 'B'),
+    fileTypeList = [(1, 'appropriation', '', 'A'),
+        (2,'object_class_program_activity', '', 'B'),
         (3, 'award_financial', '', 'C'),
-        (4, 'award', '', 'D2'),
+        (4, 'award_financial_assistance', '', 'D2'),
         (5, 'award_procurement', '', 'D1'),
         (6, "awardee_attributes", "", 'E'),
         (7, "sub_award", "", 'F')]
