@@ -9,7 +9,6 @@ from dataactbroker.handlers.fileHandler import FileHandler
 def test_start_generation_job(database):
     print("start generation test called")
     interfaces = InterfaceHolder()
-    BaseInterface.session = database
     print("DB name is {}".format(BaseInterface.dbName))
     # Set up DBs
     setupAllDB()
