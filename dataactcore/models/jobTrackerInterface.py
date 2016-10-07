@@ -6,20 +6,13 @@ from dataactcore.models.jobModels import Job, JobDependency, JobStatus, JobType,
 from dataactcore.utils.statusCode import StatusCode
 from dataactcore.utils.responseException import ResponseException
 from dataactcore.utils.cloudLogger import CloudLogger
-from dataactcore.utils.jobQueue import JobQueue
-from dataactcore.config import CONFIG_JOB_QUEUE
+from dataactcore.utils.jobQueue import enqueue
 from dataactvalidator.validation_handlers.validationError import ValidationError
 
 
 class JobTrackerInterface(BaseInterface):
     """Manages all interaction with the job tracker database."""
-
-    def __init__(self):
-        self.jobQueue = JobQueue(job_queue_url=CONFIG_JOB_QUEUE['url'])
-        super(JobTrackerInterface, self).__init__()
-
-    @staticmethod
-    def checkJobUnique(query):
+    def checkJobUnique(self, query):
         """ Checks if sqlalchemy queryResult has only one entry, error messages are specific to unique jobs
 
         Args:
@@ -28,7 +21,7 @@ class JobTrackerInterface(BaseInterface):
         Returns:
         True if single result, otherwise exception
         """
-        return BaseInterface.runUniqueQuery(query, "Job ID not found in job table","Conflicting jobs found for this ID")
+        return self.runUniqueQuery(query, "Job ID not found in job table","Conflicting jobs found for this ID")
 
     def getJobById(self,jobId):
         """ Return job model object based on ID """
@@ -229,7 +222,8 @@ class JobTrackerInterface(BaseInterface):
                 # mark job as ready
                 self.markJobStatus(depJobId, 'ready')
                 # add to the job queue
-                jobQueueResult = self.jobQueue.enqueue.delay(depJobId)
+                CloudLogger.log("Sending job {} to the job manager".format(str(depJobId)))
+                enqueue.delay(depJobId)
 
     def runChecks(self,jobId):
         """ Checks that specified job has no unsatisfied prerequisites
@@ -311,7 +305,7 @@ class JobTrackerInterface(BaseInterface):
         return self.runUniqueQuery(query, "No submission with that ID", "Multiple submissions with that ID")
 
     def populateSubmissionErrorInfo(self, submissionId):
-        """ Set number of errors and warnings for submission """
+        """Deprecated: moved to function_bag.py."""
         submission = self.getSubmissionById(submissionId)
         # TODO find where interfaces is set as an instance variable which overrides the static variable, fix that and then remove this line
         self.interfaces = BaseInterface.interfaces
@@ -320,14 +314,7 @@ class JobTrackerInterface(BaseInterface):
         self.session.commit()
 
     def setJobNumberOfErrors(self, jobId, numberOfErrors, errorType):
-        """ Label nuber of errors or warnings for specified job
-
-        Args:
-            jobId: Job to set number for
-            numberOfErrors: Number to be set
-            errorType: Type of error to set, can be either 'fatal' or 'warning'
-
-        """
+        """Deprecated: moved to sumNumberOfErrorsForJobList in function_bag.py."""
         job = self.getJobById(jobId)
         if errorType == "fatal":
             job.number_of_errors = numberOfErrors

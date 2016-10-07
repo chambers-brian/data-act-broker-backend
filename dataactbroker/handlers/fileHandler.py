@@ -1,26 +1,30 @@
-import os
-import requests
 from csv import reader
-from flask import session, request
-from datetime import datetime, date
-from werkzeug import secure_filename
+from datetime import datetime
+import os
 from uuid import uuid4
+
+from flask import session, request
+import requests
+from requests.exceptions import Timeout
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm.exc import NoResultFound
+from werkzeug import secure_filename
+
+from dataactbroker.handlers.aws.session import LoginSession
+from dataactbroker.handlers.interfaceHolder import InterfaceHolder
 from dataactcore.aws.s3UrlHandler import s3UrlHandler
-from dataactcore.utils.requestDictionary import RequestDictionary
-from dataactcore.utils.jsonResponse import JsonResponse
-from dataactcore.utils.statusCode import StatusCode
-from dataactcore.utils.responseException import ResponseException
-from dataactcore.utils.stringCleaner import StringCleaner
-from dataactcore.config import CONFIG_BROKER, CONFIG_JOB_QUEUE, CONFIG_SERVICES
+from dataactcore.config import CONFIG_BROKER, CONFIG_SERVICES
 from dataactcore.models.jobModels import FileGenerationTask, JobDependency
 from dataactcore.models.errorModels import File
-from dataactbroker.handlers.aws.session import LoginSession
-from dataactcore.utils.jobQueue import JobQueue
-from sqlalchemy.orm.exc import NoResultFound
-from dataactbroker.handlers.interfaceHolder import InterfaceHolder
-from dataactvalidator.filestreaming.csvLocalWriter import CsvLocalWriter
-from dataactvalidator.filestreaming.csvS3Writer import CsvS3Writer
+from dataactcore.utils.cloudLogger import CloudLogger
+from dataactcore.utils.jobQueue import generate_e_file, generate_f_file
+from dataactcore.utils.jsonResponse import JsonResponse
+from dataactcore.utils.responseException import ResponseException
+from dataactcore.utils.requestDictionary import RequestDictionary
+from dataactcore.utils.statusCode import StatusCode
+from dataactcore.utils.stringCleaner import StringCleaner
+from dataactvalidator.filestreaming.csv_selection import write_csv
+
 
 class FileHandler:
     """ Responsible for all tasks relating to file upload
@@ -349,12 +353,6 @@ class FileHandler:
                 if jobType != "csv_record_validation" and jobType != "validation":
                     continue
 
-                # TODO Skip D1 file until validation is added, remove these lines once D1 validation is added
-                if jobType == "csv_record_validation":
-                    fileType = self.jobManager.getFileType(jobId)
-                    if fileType == "award_procurement":
-                        continue
-
                 jobInfo["job_id"] = jobId
                 jobInfo["job_status"] = self.jobManager.getJobStatusName(jobId)
                 jobInfo["job_type"] = jobType
@@ -503,12 +501,18 @@ class FileHandler:
         job.job_status_id = jobDb.getJobStatusId("running")
         jobDb.session.commit()
         if file_type in ["D1", "D2"]:
-            self.addJobInfoForDFile(upload_file_name, timestamped_name, submission_id, file_type, file_type_name, start_date, end_date, cgac_code, job)
-        else:
-            # TODO add generate calls for E and F
-            jobDb.markJobStatus(job.job_id,"finished")
-
-            pass
+            CloudLogger.log("DEBUG: Adding job info for job id of " + str(job.job_id),
+                            log_type="debug",
+                            file_name=self.debug_file_name)
+            return self.addJobInfoForDFile(upload_file_name, timestamped_name, submission_id, file_type, file_type_name, start_date, end_date, cgac_code, job)
+        elif file_type == 'E':
+            generate_e_file.delay(
+                submission_id, job.job_id, InterfaceHolder, timestamped_name,
+                upload_file_name, self.isLocal)
+        elif file_type == 'F':
+            generate_f_file.delay(
+                submission_id, job.job_id, InterfaceHolder, timestamped_name,
+                upload_file_name, self.isLocal)
 
         return True, None
 
@@ -547,10 +551,23 @@ class FileHandler:
             exc = ResponseException(str(e),StatusCode.CLIENT_ERROR,ValueError)
             return False, JsonResponse.error(exc, exc.status, url = "", start = "", end = "",  file_type = file_type)
         # Create file D API URL with dates and callback URL
-        callback = "http://{}:{}/v1/complete_generation/{}/".format(CONFIG_SERVICES["broker_api_host"], CONFIG_SERVICES["broker_api_port"],task_key)
+        callback = "{}://{}:{}/v1/complete_generation/{}/".format(CONFIG_SERVICES["protocol"],CONFIG_SERVICES["broker_api_host"], CONFIG_SERVICES["broker_api_port"],task_key)
+        CloudLogger.log(
+            'DEBUG: Callback URL for {}: {}'.format(file_type, callback),
+            log_type='debug', file_name=self.debug_file_name)
         get_url = CONFIG_BROKER["".join([file_type_name, "_url"])].format(cgac_code, start_date, end_date, callback)
-        if not self.call_d_file_api(get_url):
-            self.handleEmptyResponse(job, valJob)
+
+        CloudLogger.log("DEBUG: Calling D file API => " + str(get_url),
+                        log_type="debug",
+                        file_name=self.debug_file_name)
+        try:
+            if not self.call_d_file_api(get_url):
+                self.handleEmptyResponse(job, valJob)
+        except Timeout as e:
+            exc = ResponseException(str(e), StatusCode.CLIENT_ERROR, Timeout)
+            return False, JsonResponse.error(e, exc.status, url="", start="", end="", file_type=file_type)
+
+        return True, None
 
     def handleEmptyResponse(self, job, valJob):
         """ Handles an empty response from the D file API by marking jobs as finished with no errors or rows
@@ -569,8 +586,8 @@ class FileHandler:
         if valJob is not None:
             jobDb.markJobStatus(valJob.job_id, "finished")
             # Create File object for this validation job
-            valFile = File(job_id = valJob.job_id, file_status_id = errorDb.getFileStatusId("complete"), filename = valJob.filename, row_errors_present = False)
-            errorDb.session.add(valFile)
+            valFile = errorDb.createFileIfNeeded(valJob.job_id, filename = valJob.filename)
+            valFile.file_status_id = errorDb.getFileStatusId("complete")
             errorDb.session.commit()
             valJob.number_of_rows = 0
             valJob.number_of_rows_valid = 0
@@ -582,7 +599,10 @@ class FileHandler:
 
     def get_xml_response_content(self, api_url):
         """ Retrieve XML Response from the provided API url """
-        return requests.get(api_url, verify=False, timeout = 20).text
+        CloudLogger.log("DEBUG: Getting XML response",
+                        log_type="debug",
+                        file_name=self.debug_file_name)
+        return requests.get(api_url, verify=False, timeout=120).text
 
     def call_d_file_api(self, api_url):
         """ Call D file API, return True if results found, False otherwise """
@@ -590,13 +610,17 @@ class FileHandler:
         return "numFound='0'" not in self.get_xml_response_content(api_url)
 
     def download_file(self, local_file_path, file_url):
-        """ Download a file locally from the specified URL """
+        """ Download a file locally from the specified URL, returns True if successful """
         with open(local_file_path, "w") as file:
             # get request
             response = requests.get(file_url)
+            if response.status_code != 200:
+                # Could not download the file, return False
+                return False
             # write to file
             response.encoding = "utf-8"
             file.write(response.text)
+            return True
 
     def get_lines_from_csv(self, file_path):
         """ Retrieve all lines from specified CSV file """
@@ -612,27 +636,22 @@ class FileHandler:
         try:
             full_file_path = "".join([CONFIG_BROKER['d_file_storage_path'], timestamped_name])
 
-            self.download_file(full_file_path, url)
+            CloudLogger.log("DEBUG: Downloading file...", log_type="debug", file_name=self.smx_log_file_name)
+            if not self.download_file(full_file_path, url):
+                # Error occurred while downloading file, mark job as failed and record error message
+                job_manager.markJobStatus(job_id, "failed")
+                job = job_manager.getJobById(job_id)
+                job.error_message = "Could not download D file"
+                raise ResponseException("Failed to download file", StatusCode.CLIENT_ERROR)
             lines = self.get_lines_from_csv(full_file_path)
 
-            headers = lines[0]
+            write_csv(timestamped_name, upload_name, isLocal, lines[0], lines[1:])
 
-            if isLocal:
-                file_name = "".join([CONFIG_BROKER['broker_files'], timestamped_name])
-                csv_writer = CsvLocalWriter(file_name, headers)
-            else:
-                bucket = CONFIG_BROKER['aws_bucket']
-                region = CONFIG_BROKER['aws_region']
-                csv_writer = CsvS3Writer(region, bucket, upload_name, headers)
-
-            with csv_writer as writer:
-                for line in lines[1:]:
-                    writer.write(line)
-                writer.finishBatch()
-
+            CloudLogger.log("DEBUG: Marking job id of " + str(job_id) + " as finished", log_type="debug", file_name=self.smx_log_file_name)
             job_manager.markJobStatus(job_id, "finished")
             return {"message": "Success", "file_name": timestamped_name}
         except Exception as e:
+            CloudLogger.log("ERROR: Exception caught => " + str(e), log_type="debug", file_name=self.smx_log_file_name)
             # Log the error
             JsonResponse.error(e,500)
             job_manager.getJobById(job_id).error_message = str(e)
@@ -657,7 +676,13 @@ class FileHandler:
 
     def generateFile(self):
         """ Start a file generation job for the specified file type """
+        self.debug_file_name = "debug.log"
+        CloudLogger.log("DEBUG: Starting D file generation", log_type="debug",
+                        file_name=self.debug_file_name)
         submission_id, file_type = self.getRequestParamsForGenerate()
+
+        CloudLogger.log("DEBUG: Submission ID = " + str(submission_id) + " / File type = " + str(file_type), log_type="debug",
+                        file_name=self.debug_file_name)
         # Check permission to submission
         success, error_response = self.checkSubmissionById(submission_id, file_type)
         if not success:
@@ -670,7 +695,13 @@ class FileHandler:
             return JsonResponse.error(exc, exc.status)
 
         success, error_response = self.startGenerationJob(submission_id,file_type)
+
+        CloudLogger.log("DEBUG: Finished startGenerationJob method",
+                        log_type="debug",
+                        file_name=self.debug_file_name)
         if not success:
+            # If not successful, set job status as "failed"
+            self.interfaces.jobDb.markJobStatus(job.job_id, "failed")
             return error_response
 
         # Return same response as check generation route
@@ -688,7 +719,7 @@ class FileHandler:
         self.checkSubmissionById(submission_id, file_type)
 
         uploadJob = self.interfaces.jobDb.getJobBySubmissionFileTypeAndJobType(submission_id, self.fileTypeMap[file_type], "file_upload")
-        if file_type in ["D2"]: # TODO add D1 to this list once D1 validation exists
+        if file_type in ["D1","D2"]:
             validationJob = self.interfaces.jobDb.getJobBySubmissionFileTypeAndJobType(submission_id, self.fileTypeMap[file_type], "csv_record_validation")
         else:
             validationJob = None
@@ -776,17 +807,28 @@ class FileHandler:
         if generationId is None:
             return JsonResponse.error(ResponseException("Must include a generation ID",StatusCode.CLIENT_ERROR), StatusCode.CLIENT_ERROR)
 
+        self.smx_log_file_name = "smx_request.log"
+
         # Pull url from request
         safeDictionary = RequestDictionary(self.request)
+        CloudLogger.log("DEBUG: Request content => " + safeDictionary.to_string(), log_type="debug", file_name=self.smx_log_file_name)
+
 
         if not safeDictionary.exists("href"):
             return JsonResponse.error(ResponseException("Request must include href key with URL of D file", StatusCode.CLIENT_ERROR), StatusCode.CLIENT_ERROR)
         url =  safeDictionary.getValue("href")
+        CloudLogger.log("DEBUG: Download URL => " + url, log_type="debug", file_name=self.smx_log_file_name)
+
         #Pull information based on task key
         try:
+            CloudLogger.log("DEBUG: Pulling information based on task key...", log_type="debug",
+                            file_name=self.smx_log_file_name)
             task = self.interfaces.jobDb.session.query(FileGenerationTask).options(joinedload(FileGenerationTask.file_type)).filter(FileGenerationTask.generation_task_key == generationId).one()
             job = self.interfaces.jobDb.getJobById(task.job_id)
-            self.load_d_file(url,job.filename,job.original_filename,job.job_id,self.isLocal)
+            CloudLogger.log("DEBUG: Loading D file...", log_type="debug", file_name=self.smx_log_file_name)
+            result = self.load_d_file(url,job.filename,job.original_filename,job.job_id,self.isLocal)
+            CloudLogger.log("DEBUG: Load D file result => " + str(result), log_type="debug",
+                            file_name=self.smx_log_file_name)
             return JsonResponse.create(StatusCode.OK,{"message":"File loaded successfully"})
         except ResponseException as e:
             return JsonResponse.error(e, e.status)

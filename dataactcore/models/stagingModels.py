@@ -197,7 +197,7 @@ Index("ix_award_financial_tas_oc_pa",
       unique=False)
 
 class AwardFinancialAssistance(Base):
-    """Model for the award_financial_assistance table."""
+    """Model for D2-Award (Financial Assistance)."""
     __tablename__ = "award_financial_assistance"
 
     award_financial_assistance_id = Column(Integer, primary_key=True)
@@ -273,7 +273,7 @@ class AwardFinancialAssistance(Base):
         super(AwardFinancialAssistance, self).__init__(**cleanKwargs)
 
 class AwardProcurement(Base):
-    """ Model for D1 award procurement records """
+    """Model for D1-Award (Procurement)."""
     __tablename__ = "award_procurement"
     award_procurement_id = Column(Integer, primary_key=True)
     submission_id = Column(Integer, nullable=False, index=True)
@@ -477,4 +477,4 @@ class AwardProcurement(Base):
         # broker is set up to ignore extra columns in submitted data
         # so get rid of any extraneous kwargs before instantiating
         cleanKwargs = {k: v for k, v in kwargs.items() if hasattr(self, k)}
-        super(Appropriation, self).__init__(**cleanKwargs)
+        super(AwardProcurement, self).__init__(**cleanKwargs)
